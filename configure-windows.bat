@@ -126,6 +126,8 @@ try {
         @{ Command = 'gh';       Package = 'gh' },
         @{ Command = 'rg';       Package = 'ripgrep' },
         @{ Command = 'node';     Package = 'nodejs' },
+        @{ Command = 'python3';  Package = 'python' },
+        @{ Command = 'ruby';     Package = 'ruby' },
         @{ Command = 'dotnet';   Package = 'dotnet-sdk' },
         @{ Command = 'fd';       Package = 'fd' },
         @{ Command = 'jq';       Package = 'jq' },
