@@ -1,0 +1,37 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"editor.tabSize": 2,
+		"editor.insertSpaces": true,
+		"workbench.colorTheme": "Light Modern",
+		"window.titleBarStyle": "custom",
+		"workbench.colorCustomizations": {
+			"window.activeBorder": "#8E8E93",
+			"window.inactiveBorder": "#C7C7CC",
+			"titleBar.activeBackground": "#D1D1D6",
+			"titleBar.inactiveBackground": "#E5E5EA",
+			"titleBar.activeForeground": "#1C1C1E",
+			"titleBar.inactiveForeground": "#636366",
+			"editorGroupHeader.tabsBackground": "#E5E5EA",
+			"editorGroupHeader.noTabsBackground": "#F2F2F7",
+			"tab.activeBackground": "#FFFFFF",
+			"tab.inactiveBackground": "#E5E5EA",
+			"tab.border": "#C7C7CC",
+			"tab.activeBorderTop": "#8E8E93",
+			"tab.activeForeground": "#1C1C1E",
+			"tab.inactiveForeground": "#636366",
+			"tab.unfocusedActiveForeground": "#3A3A3C",
+			"tab.unfocusedInactiveForeground": "#8E8E93",
+			"panel.background": "#111111",
+			"panel.border": "#C7C7CC",
+			"terminal.background": "#111111",
+			"terminal.foreground": "#F5F5F5",
+			"terminalCursor.background": "#111111",
+			"terminalCursor.foreground": "#8E8E93"
+		}
+	}
+}
