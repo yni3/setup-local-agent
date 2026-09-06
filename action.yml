@@ -1,0 +1,17 @@
+name: Configure Windows tools
+description: Configure the current Windows runner with the tools used by setup-local-agent.
+author: setup-local-agent contributors
+
+runs:
+  using: composite
+  steps:
+    - name: Configure Windows runner
+      if: runner.os == 'Windows'
+      shell: cmd
+      run: call "${{ github.action_path }}\configure-windows.bat"
+
+    - name: Skip Windows configuration
+      if: runner.os != 'Windows'
+      shell: bash
+      run: echo "Skipping Windows configuration because this runner is $RUNNER_OS."
+

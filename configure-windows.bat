@@ -17,7 +17,7 @@ set "EXIT_CODE=%ERRORLEVEL%"
 if not "%EXIT_CODE%"=="0" (
     echo.
     echo ERROR: Windows configuration failed with exit code %EXIT_CODE%.
-    pause
+    if /i not "%GITHUB_ACTIONS%"=="true" pause
 )
 
 endlocal & exit /b %EXIT_CODE%
