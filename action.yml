@@ -1,5 +1,5 @@
-name: Configure Windows tools
-description: Configure the current Windows runner with the tools used by setup-local-agent.
+name: Configure setup-local-agent tools
+description: Configure the current Windows or macOS runner with the tools used by setup-local-agent.
 author: setup-local-agent contributors
 
 runs:
@@ -10,8 +10,12 @@ runs:
       shell: cmd
       run: call "${{ github.action_path }}\configure-windows.bat"
 
-    - name: Skip Windows configuration
-      if: runner.os != 'Windows'
+    - name: Configure macOS runner
+      if: runner.os == 'macOS'
       shell: bash
-      run: echo "Skipping Windows configuration because this runner is $RUNNER_OS."
+      run: bash "${{ github.action_path }}/configure-macos.sh"
 
+    - name: Skip unsupported runner
+      if: runner.os != 'Windows' && runner.os != 'macOS'
+      shell: bash
+      run: echo "Skipping setup-local-agent configuration because this runner is $RUNNER_OS."

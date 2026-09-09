@@ -46,6 +46,27 @@ MSYS2 の `ucrt64\bin` などの環境別ディレクトリは Windows 全体の
 - PATH の変更は、セットアップを実行した既存のシェルには自動反映されない場合があります。完了後に新しい cmd / PowerShell を起動してください。GitHub Actions では `GITHUB_PATH` にも追加されるため、後続ステップから利用できます。
 - Scoop、MSYS2、Git などで同名のコマンドがある場合、MSYS2 の `usr\bin` を優先する設定になります。PowerShell の `ls` / `cat` エイリアスだけは変更されません。
 
+## macOS のセットアップ
+
+管理者権限を持たない通常ユーザーのターミナルで、次を実行してください。
+
+```sh
+bash configure-macos.sh
+```
+
+macOS 版は Homebrew や `sudo` を使用しません。公式の単体バイナリを導入する [mise](https://mise.jdx.dev/) を `~/.local/bin` に配置し、mise の global tool を `~/.local/share/mise` 以下へ導入します。mise の公式インストール方法は macOS で Homebrew を使わない単体インストールをサポートしています。
+
+Windows 版で導入する追加ツールのうち、macOS に標準搭載されている `git`、`curl`、`tar`、`bash`、`cat`、`ls` は既存のものを利用します。それ以外の `gh`、`rg`、`node`、`python3`、`ruby`、`dotnet`、`fd`、`jq`、`yq`、`fzf`、`bat`、`delta`、`actionlint` を現在のユーザー領域へ導入し、`dotnet format` と `actionlint` の実行可能性を検証します。既に PATH に存在するツールはスキップされます。`pwsh` が既にインストールされている場合だけ、`PSScriptAnalyzer` の導入と検証も行います。macOS 版では `pwsh` の導入を必須にしません。
+
+7-Zip は macOS の実行ファイル名に合わせて `7zz` を導入し、`~/.local/bin/7z` という互換リンクも作成します。PATH の変更と mise の zsh 有効化は `~/.zshrc` に追加されます。
+
+### 注意事項
+
+- macOS 版も管理者権限を要求せず、`~/.local` 以下と PowerShell のユーザー領域だけを変更します。
+- 実行にはインターネット接続が必要です。インストール元は mise と各ツールの公式配布元です。
+- GitHub Actions では mise のツールパスが `GITHUB_PATH` に追加されるため、後続ステップから利用できます。
+- セットアップ後に新しいターミナルを起動するか、表示された `source ~/.zshrc` を実行してください。
+
 ## GitHub Actions のコンポジットアクション
 
 このリポジトリは、外部リポジトリのワークフローから呼び出せるコンポジットアクションとしても利用できます。`uses` にはこのリポジトリの所有者、リポジトリ名、タグまたはコミット SHA を指定してください。
@@ -56,6 +77,6 @@ steps:
     uses: OWNER/setup-local-agent@v1
 ```
 
-アクションは `runner.os` が `Windows` の場合だけ `configure-windows.bat` を実行します。Linux や macOS では Windows の設定を行わず、スキップメッセージを出力して成功します。Windows で失敗した場合はバッチファイルの終了コードをそのままアクションの失敗として返します。
+アクションは `runner.os` が `Windows` の場合に `configure-windows.bat`、`macOS` の場合に `configure-macos.sh` を実行します。Linux などの対応していない OS では設定を行わず、スキップメッセージを出力して成功します。いずれかの対応 OS で失敗した場合は、セットアップスクリプトの終了コードをそのままアクションの失敗として返します。
 
 外部リポジトリがこのアクションを利用するには、呼び出し元からこのリポジトリへのアクセス権が必要です。公開リポジトリのワークフローで利用する場合も、リリース済みタグまたはコミット SHA への固定を推奨します。
