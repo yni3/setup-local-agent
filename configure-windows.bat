@@ -47,6 +47,57 @@ function Refresh-ProcessPath {
     }
 }
 
+function Add-UserPathEntry([string] $path) {
+    if ([string]::IsNullOrWhiteSpace($path) -or -not (Test-Path -LiteralPath $path -PathType Container)) {
+        throw "Cannot add a missing directory to PATH: $path"
+    }
+
+    $normalizedPath = $path.TrimEnd('\', '/')
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $entries = @($userPath -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $alreadyPresent = $entries | Where-Object {
+        $_.TrimEnd('\', '/') -ieq $normalizedPath
+    } | Select-Object -First 1
+
+    if ($null -eq $alreadyPresent) {
+        # Put MSYS2 ahead of other Unix compatibility layers in new shells.
+        $newUserPath = (@($normalizedPath) + $entries) -join ';'
+        [Environment]::SetEnvironmentVariable('Path', $newUserPath, 'User')
+        Write-Host "[path] Added to the current user's PATH: $normalizedPath"
+    } else {
+        Write-Host "[skip] The current user's PATH already contains: $normalizedPath"
+    }
+
+    # Also make the directory available to this PowerShell process immediately.
+    $processEntries = @($env:Path -split ';' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $processAlreadyPresent = $processEntries | Where-Object {
+        $_.TrimEnd('\', '/') -ieq $normalizedPath
+    } | Select-Object -First 1
+    if ($null -eq $processAlreadyPresent) {
+        $env:Path = (@($normalizedPath) + $processEntries) -join ';'
+    }
+}
+
+function Add-GitHubPathEntry([string] $path) {
+    if ([string]::IsNullOrWhiteSpace($env:GITHUB_PATH)) {
+        return
+    }
+
+    $normalizedPath = $path.TrimEnd('\', '/')
+    $existingEntries = @()
+    if (Test-Path -LiteralPath $env:GITHUB_PATH -PathType Leaf) {
+        $existingEntries = @(Get-Content -LiteralPath $env:GITHUB_PATH -ErrorAction SilentlyContinue)
+    }
+
+    $alreadyPresent = $existingEntries | Where-Object {
+        $_.TrimEnd('\', '/') -ieq $normalizedPath
+    } | Select-Object -First 1
+    if ($null -eq $alreadyPresent) {
+        Add-Content -LiteralPath $env:GITHUB_PATH -Value $normalizedPath -Encoding utf8
+        Write-Host "[path] Added to GitHub Actions PATH: $normalizedPath"
+    }
+}
+
 function Test-ExecutableInPath([string] $name) {
     return $null -ne (Get-Command -Name $name -CommandType Application -ErrorAction SilentlyContinue)
 }
@@ -56,6 +107,63 @@ function Invoke-Scoop([string[]] $arguments) {
     if ($LASTEXITCODE -ne 0) {
         throw "scoop $($arguments -join ' ') failed with exit code $LASTEXITCODE."
     }
+}
+
+function Get-ScoopAppPath([string] $package) {
+    $output = @(& scoop prefix $package 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $output.Count -eq 0) {
+        return $null
+    }
+
+    $candidate = ([string]($output | Select-Object -Last 1)).Trim()
+    if ([string]::IsNullOrWhiteSpace($candidate) -or
+        -not (Test-Path -LiteralPath $candidate -PathType Container)) {
+        return $null
+    }
+    return (Resolve-Path -LiteralPath $candidate).Path
+}
+
+function Install-Msys2 {
+    $msys2Root = Get-ScoopAppPath 'msys2'
+    if ($null -eq $msys2Root) {
+        Write-Host '[install] msys2 via Scoop...'
+        Invoke-Scoop @('install', 'msys2')
+        $msys2Root = Get-ScoopAppPath 'msys2'
+    } else {
+        Write-Host "[skip] msys2 is already installed via Scoop: $msys2Root"
+    }
+
+    if ($null -eq $msys2Root) {
+        throw 'MSYS2 installation completed, but its Scoop app path could not be resolved.'
+    }
+
+    $msys2UsrBin = Join-Path $msys2Root 'usr\bin'
+    foreach ($command in @('bash.exe', 'cat.exe', 'ls.exe')) {
+        $commandPath = Join-Path $msys2UsrBin $command
+        if (-not (Test-Path -LiteralPath $commandPath -PathType Leaf)) {
+            throw "MSYS2 is missing the expected command: $commandPath"
+        }
+    }
+
+    Add-UserPathEntry $msys2UsrBin
+    Add-GitHubPathEntry $msys2UsrBin
+    Refresh-ProcessPath
+
+    foreach ($command in @('bash', 'cat', 'ls')) {
+        if (-not (Test-ExecutableInPath $command)) {
+            throw "MSYS2 '$command' is not available in PATH after installation."
+        }
+        $resolved = (Get-Command -Name $command -CommandType Application | Select-Object -First 1).Source
+        if ($resolved -ine (Join-Path $msys2UsrBin "$command.exe")) {
+            throw "The '$command' command does not resolve to MSYS2: $resolved"
+        }
+        & $resolved --version *> $null
+        if ($LASTEXITCODE -ne 0) {
+            throw "The MSYS2 '$command' command could not be executed."
+        }
+    }
+
+    Write-Host '[ready] MSYS2 Bash, cat, and ls are available from the Windows PATH.'
 }
 
 function Install-PowerShellLint {
@@ -121,6 +229,8 @@ try {
     if ($null -eq (Get-Command -Name scoop -ErrorAction SilentlyContinue)) {
         throw 'Scoop installation completed, but the scoop command is still not available in PATH.'
     }
+
+    Install-Msys2
 
     $tools = @(
         @{ Command = 'gh';       Package = 'gh' },
