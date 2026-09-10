@@ -361,6 +361,7 @@ try {
 
         $resolved = Resolve-ExecutableInPath $tool.Command
         if ($null -ne $resolved) {
+            Add-GitHubPathEntry (Split-Path -Parent $resolved)
             Write-Host "[skip] $($tool.Command) is already in PATH: $resolved"
             continue
         }
@@ -373,6 +374,7 @@ try {
         if ($null -eq $resolved) {
             throw "Installed Scoop package '$($tool.Package)', but '$($tool.Command)' is still not available in PATH."
         }
+        Add-GitHubPathEntry (Split-Path -Parent $resolved)
         Write-Host "[ready] $($tool.Command) is available in PATH: $resolved"
     }
 
