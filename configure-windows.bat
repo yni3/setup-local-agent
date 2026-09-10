@@ -123,6 +123,53 @@ function Get-ScoopAppPath([string] $package) {
     return (Resolve-Path -LiteralPath $candidate).Path
 }
 
+function Install-Portable7Zip {
+    # Scoop uses 7-Zip to extract packages. The current 7zip manifest is an
+    # MSI, and Windows Installer may be unavailable when this script runs as a
+    # service account (for example, on a self-hosted runner). Bootstrap with
+    # the standalone console binary instead, before installing MSYS2.
+    Refresh-ProcessPath
+    $existing7z = Get-Command -Name '7z' -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -ne $existing7z) {
+        & $existing7z.Source -h *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[skip] A working 7z is already available: $($existing7z.Source)"
+            return
+        }
+        Write-Host "[warn] The 7z command is present but could not be executed: $($existing7z.Source)"
+    }
+
+    $portableRoot = Join-Path $env:USERPROFILE 'scoop\apps\7zip-portable\current'
+    $portable7z = Join-Path $portableRoot '7z.exe'
+    $downloadUrl = 'https://github.com/ip7z/7zip/releases/download/26.03/7z2603.exe'
+    $expectedHash = '0f6ec2eda1f8c5dc4c267ee761c0dad8a9d5e8863e0c84b7ac026bc9625a1560'
+    $downloadPath = [System.IO.Path]::GetTempFileName()
+
+    try {
+        New-Item -ItemType Directory -Path $portableRoot -Force | Out-Null
+        Write-Host '[install] standalone 7z bootstrap binary...'
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $downloadPath
+        $actualHash = (Get-FileHash -LiteralPath $downloadPath -Algorithm SHA256).Hash
+        if ($actualHash -ine $expectedHash) {
+            throw "The downloaded 7z bootstrap binary failed SHA256 verification: $actualHash"
+        }
+        Copy-Item -LiteralPath $downloadPath -Destination $portable7z -Force
+        Unblock-File -LiteralPath $portable7z -ErrorAction SilentlyContinue
+    } finally {
+        Remove-Item -LiteralPath $downloadPath -Force -ErrorAction SilentlyContinue
+    }
+
+    Add-UserPathEntry $portableRoot
+    Add-GitHubPathEntry $portableRoot
+    Refresh-ProcessPath
+    & $portable7z -h *> $null
+    if ($LASTEXITCODE -ne 0) {
+        throw "The standalone 7z bootstrap binary could not be executed: $portable7z"
+    }
+    Write-Host "[ready] Standalone 7z is available for Scoop extraction: $portable7z"
+}
+
 function Install-Msys2 {
     $msys2Root = Get-ScoopAppPath 'msys2'
     if ($null -eq $msys2Root) {
@@ -230,6 +277,7 @@ try {
         throw 'Scoop installation completed, but the scoop command is still not available in PATH.'
     }
 
+    Install-Portable7Zip
     Install-Msys2
 
     $tools = @(

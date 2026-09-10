@@ -32,7 +32,7 @@ configure-windows.bat
 
 さらに、PowerShell のユーザー領域に `PSScriptAnalyzer` モジュールを導入し、`Invoke-ScriptAnalyzer` が利用できることを確認します。.NET SDK の `dotnet format` と `actionlint` についても実行可能性を検証します。
 
-MSYS2 は Scoop の `msys2` パッケージからユーザー領域へ導入し、MSYS2 の `usr\bin` を現在のユーザーの PATH に追加します。これにより、cmd では `bash`、`cat`、`ls` を直接実行できます。MSYS2 Bash は `bash` で起動できます。
+MSYS2 は Scoop の `msys2` パッケージからユーザー領域へ導入し、MSYS2 の `usr\bin` を現在のユーザーの PATH に追加します。これにより、cmd では `bash`、`cat`、`ls` を直接実行できます。MSYS2 Bash は `bash` で起動できます。MSYS2 の展開に必要な 7-Zip は MSYS2 より先に準備します。
 
 PowerShell では `ls` と `cat` が標準エイリアス（`Get-ChildItem` と `Get-Content`）として予約されているため、MSYS2 版を使う場合は `ls.exe` / `cat.exe`、または `bash -lc "ls"` / `bash -lc "cat file"` を使用してください。PowerShell プロファイルは変更しません。
 
@@ -41,6 +41,7 @@ MSYS2 の `ucrt64\bin` などの環境別ディレクトリは Windows 全体の
 ### 注意事項
 
 - Scoop と各ツールは管理者権限を使わず、現在のユーザー領域にインストールされます。
+- MSYS2 のインストール前に、スタンドアロン版 7-Zip（`7z2603.exe`）をユーザー領域へ配置します。これは、サービスアカウントや GitHub Actions の環境で Windows Installer サービスが利用できず、Scoop の `7zip` MSI の展開がエラー 1601 になる場合を回避するためです。
 - `configure-windows.bat` は PowerShell 7 が PATH に存在しない場合、Scoop が管理者権限で実行されている場合、または必要なツールを利用できない場合にエラー終了します。
 - インストールにはインターネット接続が必要です。
 - PATH の変更は、セットアップを実行した既存のシェルには自動反映されない場合があります。完了後に新しい cmd / PowerShell を起動してください。GitHub Actions では `GITHUB_PATH` にも追加されるため、後続ステップから利用できます。
