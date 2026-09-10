@@ -324,6 +324,14 @@ try {
         throw 'Scoop installation completed, but the scoop command is still not available in PATH.'
     }
 
+    # Scoop applications are exposed through per-user shims. The current
+    # PowerShell process can see them after Refresh-ProcessPath, but a later
+    # GitHub Actions step only receives paths explicitly written to GITHUB_PATH.
+    $scoopShims = Join-Path $env:USERPROFILE 'scoop\shims'
+    if (Test-Path -LiteralPath $scoopShims -PathType Container) {
+        Add-GitHubPathEntry $scoopShims
+    }
+
     Install-Portable7Zip
     Install-ScoopMsiExtractor
     Install-Msys2
