@@ -128,18 +128,6 @@ function Install-Portable7Zip {
     # helper lookup specifically checks apps\7zip\current\7z.exe. Therefore
     # putting 7z on PATH alone does not solve MSI extraction failures.
     # Create the helper at Scoop's expected path before installing any package.
-    Refresh-ProcessPath
-    $existing7z = Get-Command -Name '7z' -CommandType Application -ErrorAction SilentlyContinue |
-        Select-Object -First 1
-    if ($null -ne $existing7z) {
-        & $existing7z.Source -h *> $null
-        if ($LASTEXITCODE -eq 0) {
-            Write-Host "[skip] A working 7z is already available: $($existing7z.Source)"
-            return
-        }
-        Write-Host "[warn] The 7z command is present but could not be executed: $($existing7z.Source)"
-    }
-
     $scoopRoot = Join-Path $env:USERPROFILE 'scoop'
     if (-not (Test-Path -LiteralPath (Join-Path $scoopRoot 'apps') -PathType Container)) {
         $scoopRoot = [Environment]::GetEnvironmentVariable('SCOOP', 'User')
@@ -150,6 +138,18 @@ function Install-Portable7Zip {
     }
     $portableRoot = Join-Path $scoopRoot 'apps\7zip\current'
     $portable7z = Join-Path $portableRoot '7z.exe'
+
+    if (Test-Path -LiteralPath $portable7z -PathType Leaf) {
+        & $portable7z -h *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Add-UserPathEntry $portableRoot
+            Add-GitHubPathEntry $portableRoot
+            Refresh-ProcessPath
+            Write-Host "[skip] A working Scoop 7-Zip helper is already available: $portable7z"
+            return
+        }
+    }
+
     $downloadUrl = 'https://github.com/ip7z/7zip/releases/download/26.03/7z2603.exe'
     $expectedHash = '0f6ec2eda1f8c5dc4c267ee761c0dad8a9d5e8863e0c84b7ac026bc9625a1560'
     $downloadPath = [System.IO.Path]::GetTempFileName()
@@ -176,6 +176,32 @@ function Install-Portable7Zip {
         throw "The standalone 7z bootstrap binary could not be executed at Scoop's helper path: $portable7z"
     }
     Write-Host "[ready] Standalone 7z is available to Scoop at its helper path: $portable7z"
+}
+
+function Install-ScoopMsiExtractor {
+    $lessMsiRoot = Get-ScoopAppPath 'lessmsi'
+    if ($null -eq $lessMsiRoot) {
+        Write-Host '[install] lessmsi via Scoop for MSI extraction...'
+        Invoke-Scoop @('install', 'lessmsi')
+        $lessMsiRoot = Get-ScoopAppPath 'lessmsi'
+    } else {
+        Write-Host "[skip] lessmsi is already installed via Scoop: $lessMsiRoot"
+    }
+
+    if ($null -eq $lessMsiRoot) {
+        throw 'lessmsi installation completed, but its Scoop app path could not be resolved.'
+    }
+
+    $lessMsiPath = Join-Path $lessMsiRoot 'lessmsi.exe'
+    if (-not (Test-Path -LiteralPath $lessMsiPath -PathType Leaf)) {
+        throw "Scoop lessmsi installation is missing the expected executable: $lessMsiPath"
+    }
+
+    # Windows Installer is unavailable for some service accounts. Scoop's
+    # use_lessmsi option makes Expand-MsiArchive use lessmsi instead of
+    # msiexec.exe for all subsequent MSI packages.
+    Invoke-Scoop @('config', 'use_lessmsi', 'true')
+    Write-Host "[ready] Scoop will extract MSI packages with lessmsi: $lessMsiPath"
 }
 
 function Install-Msys2 {
@@ -286,6 +312,7 @@ try {
     }
 
     Install-Portable7Zip
+    Install-ScoopMsiExtractor
     Install-Msys2
 
     $tools = @(

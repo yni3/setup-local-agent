@@ -41,7 +41,8 @@ MSYS2 の `ucrt64\bin` などの環境別ディレクトリは Windows 全体の
 ### 注意事項
 
 - Scoop と各ツールは管理者権限を使わず、現在のユーザー領域にインストールされます。
-- MSYS2 と各パッケージのインストール前に、スタンドアロン版 7-Zip（`7z2603.exe`）を Scoop が参照する `apps\7zip\current\7z.exe` に配置します。単に PATH へ追加するだけでは Scoop の展開用ヘルパーとして認識されません。これは、サービスアカウントや GitHub Actions の環境で Windows Installer サービスが利用できず、MSI の展開がエラー 1601 になる場合を回避するためです。
+- MSYS2 と各パッケージのインストール前に、スタンドアロン版 7-Zip（`7z2603.exe`）を Scoop が参照する `apps\7zip\current\7z.exe` に配置します。単に PATH へ追加するだけでは Scoop の展開用ヘルパーとして認識されません。
+- 続けて `lessmsi` を導入し、Scoop の `use_lessmsi` を有効にします。これにより、サービスアカウントや GitHub Actions の環境で Windows Installer サービスが利用できない場合も、Python などの MSI を `msiexec.exe` ではなく `lessmsi` で展開します。エラー 1601 の回避が目的です。
 - `configure-windows.bat` は PowerShell 7 が PATH に存在しない場合、Scoop が管理者権限で実行されている場合、または必要なツールを利用できない場合にエラー終了します。
 - インストールにはインターネット接続が必要です。
 - PATH の変更は、セットアップを実行した既存のシェルには自動反映されない場合があります。完了後に新しい cmd / PowerShell を起動してください。GitHub Actions では `GITHUB_PATH` にも追加されるため、後続ステップから利用できます。
