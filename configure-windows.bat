@@ -124,10 +124,10 @@ function Get-ScoopAppPath([string] $package) {
 }
 
 function Install-Portable7Zip {
-    # Scoop uses 7-Zip to extract packages. The current 7zip manifest is an
-    # MSI, and Windows Installer may be unavailable when this script runs as a
-    # service account (for example, on a self-hosted runner). Bootstrap with
-    # the standalone console binary instead, before installing MSYS2.
+    # Scoop does not use the 7z command from PATH to extract packages. Its
+    # helper lookup specifically checks apps\7zip\current\7z.exe. Therefore
+    # putting 7z on PATH alone does not solve MSI extraction failures.
+    # Create the helper at Scoop's expected path before installing any package.
     Refresh-ProcessPath
     $existing7z = Get-Command -Name '7z' -CommandType Application -ErrorAction SilentlyContinue |
         Select-Object -First 1
@@ -140,7 +140,15 @@ function Install-Portable7Zip {
         Write-Host "[warn] The 7z command is present but could not be executed: $($existing7z.Source)"
     }
 
-    $portableRoot = Join-Path $env:USERPROFILE 'scoop\apps\7zip-portable\current'
+    $scoopRoot = Join-Path $env:USERPROFILE 'scoop'
+    if (-not (Test-Path -LiteralPath (Join-Path $scoopRoot 'apps') -PathType Container)) {
+        $scoopRoot = [Environment]::GetEnvironmentVariable('SCOOP', 'User')
+    }
+    if ([string]::IsNullOrWhiteSpace($scoopRoot) -or
+        -not (Test-Path -LiteralPath (Join-Path $scoopRoot 'apps') -PathType Container)) {
+        throw "Scoop's root directory could not be resolved for the current user: $scoopRoot"
+    }
+    $portableRoot = Join-Path $scoopRoot 'apps\7zip\current'
     $portable7z = Join-Path $portableRoot '7z.exe'
     $downloadUrl = 'https://github.com/ip7z/7zip/releases/download/26.03/7z2603.exe'
     $expectedHash = '0f6ec2eda1f8c5dc4c267ee761c0dad8a9d5e8863e0c84b7ac026bc9625a1560'
@@ -165,9 +173,9 @@ function Install-Portable7Zip {
     Refresh-ProcessPath
     & $portable7z -h *> $null
     if ($LASTEXITCODE -ne 0) {
-        throw "The standalone 7z bootstrap binary could not be executed: $portable7z"
+        throw "The standalone 7z bootstrap binary could not be executed at Scoop's helper path: $portable7z"
     }
-    Write-Host "[ready] Standalone 7z is available for Scoop extraction: $portable7z"
+    Write-Host "[ready] Standalone 7z is available to Scoop at its helper path: $portable7z"
 }
 
 function Install-Msys2 {
