@@ -99,7 +99,20 @@ function Add-GitHubPathEntry([string] $path) {
 }
 
 function Test-ExecutableInPath([string] $name) {
-    return $null -ne (Get-Command -Name $name -CommandType Application -ErrorAction SilentlyContinue)
+    return $null -ne (Resolve-ExecutableInPath $name)
+}
+
+function Resolve-ExecutableInPath([string] $name) {
+    # Get-Command writes a terminating error when a command is missing unless
+    # ErrorAction is specified. Keep command probing non-terminating so a
+    # missing tool can be installed by the loop below instead of aborting the
+    # whole setup with "The term 'gh' is not recognized".
+    $command = Get-Command -Name $name -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($null -eq $command) {
+        return $null
+    }
+    return $command.Source
 }
 
 function Invoke-Scoop([string[]] $arguments) {
@@ -338,8 +351,8 @@ try {
     foreach ($tool in $tools) {
         Refresh-ProcessPath
 
-        if (Test-ExecutableInPath $tool.Command) {
-            $resolved = (Get-Command -Name $tool.Command -CommandType Application).Source
+        $resolved = Resolve-ExecutableInPath $tool.Command
+        if ($null -ne $resolved) {
             Write-Host "[skip] $($tool.Command) is already in PATH: $resolved"
             continue
         }
@@ -348,9 +361,11 @@ try {
         Invoke-Scoop @('install', $tool.Package)
         Refresh-ProcessPath
 
-        if (-not (Test-ExecutableInPath $tool.Command)) {
+        $resolved = Resolve-ExecutableInPath $tool.Command
+        if ($null -eq $resolved) {
             throw "Installed Scoop package '$($tool.Package)', but '$($tool.Command)' is still not available in PATH."
         }
+        Write-Host "[ready] $($tool.Command) is available in PATH: $resolved"
     }
 
     Install-PowerShellLint
